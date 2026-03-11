@@ -2,7 +2,7 @@
   "name": "folia-checker",
   "displayName": "Folia Checker",
   "description": "Real-time linting for Folia Minecraft plugin compatibility violations",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "publisher": "IronDiscipline",
   "license": "MIT",
   "repository": {
