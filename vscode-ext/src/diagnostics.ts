@@ -1,5 +1,6 @@
+import * as path from 'path';
 import * as vscode from 'vscode';
-import { analyzeContent, analyzeFile } from '@foliachecker/shared';
+import { analyzeContent, analyzeFile, isBukkitProject } from '@foliachecker/shared';
 import type { Violation } from '@foliachecker/shared';
 
 function getConfig() {
@@ -9,15 +10,28 @@ function getConfig() {
 export class DiagnosticProvider {
   public readonly collection: vscode.DiagnosticCollection;
   private readonly debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  /** ワークスペースフォルダごとの Bukkit 系プロジェクト判定キャッシュ */
+  private readonly projectCache = new Map<string, boolean>();
 
   constructor() {
     this.collection = vscode.languages.createDiagnosticCollection('folia-checker');
+  }
+
+  /** ファイルパスが Bukkit 系プロジェクト配下かどうかをキャッシュ付きで判定 */
+  private isBukkitFile(fsPath: string): boolean {
+    const folder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(fsPath));
+    const cacheKey = folder ? folder.uri.fsPath : path.dirname(fsPath);
+    if (!this.projectCache.has(cacheKey)) {
+      this.projectCache.set(cacheKey, isBukkitProject(cacheKey));
+    }
+    return this.projectCache.get(cacheKey)!;
   }
 
   // 開いているドキュメントを解析（編集中の内容をリアルタイムで反映）
   analyzeDocument(document: vscode.TextDocument): void {
     if (!this.isTargetDocument(document)) return;
     if (!getConfig().get<boolean>('enable', true)) return;
+    if (!this.isBukkitFile(document.uri.fsPath)) return;
 
     const result = analyzeContent(document.getText(), document.uri.fsPath);
     const diagnostics = result.violations.map((v) =>
@@ -29,6 +43,7 @@ export class DiagnosticProvider {
   // ディスク上のファイルを直接解析（エディタで開いていないファイル用）
   analyzeFilePath(uri: vscode.Uri): void {
     if (!getConfig().get<boolean>('enable', true)) return;
+    if (!this.isBukkitFile(uri.fsPath)) return;
 
     const result = analyzeFile(uri.fsPath);
     if (result.error) return;
@@ -88,6 +103,7 @@ export class DiagnosticProvider {
   // 全診断をクリアして再スキャン（設定変更時に使用）
   async reloadAll(): Promise<void> {
     this.collection.clear();
+    this.projectCache.clear();
     await this.analyzeWorkspace();
   }
 

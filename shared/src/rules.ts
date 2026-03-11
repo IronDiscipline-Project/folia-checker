@@ -35,7 +35,8 @@ export const FOLIA_RULES: FoliaRule[] = [
     id: 'SYNC_SCHEDULER_METHODS',
     severity: 'error',
     // runTaskAsynchronously / runTaskTimerAsynchronously は Folia でも存在するため除外
-    patternSource: String.raw`\b(runTask|runTaskLater|runTaskTimer)\s*\(`,
+    // \. を要求してオブジェクトのメソッド呼び出しに限定（汎用メソッド名の誤検知を防ぐ）
+    patternSource: String.raw`\.(runTask|runTaskLater|runTaskTimer)\s*\(`,
     message: (m) =>
       `'${m.trim()}' は Bukkit の同期スケジューラーメソッドで、Folia では削除されています。` +
       `グローバルなメインスレッドが存在しないためです。`,
@@ -62,7 +63,8 @@ export const FOLIA_RULES: FoliaRule[] = [
   {
     id: 'LEGACY_ASYNC_SCHEDULER',
     severity: 'error',
-    patternSource: String.raw`\b(scheduleAsyncDelayedTask|scheduleAsyncRepeatingTask)\s*\(`,
+    // \. を要求して BukkitScheduler のメソッド呼び出しに限定
+    patternSource: String.raw`\.(scheduleAsyncDelayedTask|scheduleAsyncRepeatingTask)\s*\(`,
     message: (m) =>
       `'${m.trim()}' は Bukkit の旧非同期スケジューラー API で、Folia では削除されています。`,
     fixSuggestion:
@@ -87,7 +89,8 @@ export const FOLIA_RULES: FoliaRule[] = [
   {
     id: 'UNSAFE_CHUNK_ACCESS',
     severity: 'warning',
-    patternSource: String.raw`\b(getChunkAt|loadChunk)\s*\(`,
+    // \. を要求して World/Chunk のメソッド呼び出しに限定（汎用名の誤検知を防ぐ）
+    patternSource: String.raw`\.(getChunkAt|loadChunk)\s*\(`,
     message: (m) =>
       `'${m.trim()}' はリージョンスレッド外から呼び出すと Folia でクラッシュする可能性があります。`,
     fixSuggestion:
