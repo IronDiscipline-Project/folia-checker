@@ -1,0 +1,16 @@
+# Node
+node_modules/
+
+# Build outputs
+dist/
+shared/dist/
+
+# VS Code extension packages
+vscode-ext/*.vsix
+
+# TypeScript cache
+*.tsbuildinfo
+
+# OS
+.DS_Store
+Thumbs.db

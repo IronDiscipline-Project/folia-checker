@@ -1,0 +1,57 @@
+{
+  "name": "folia-checker",
+  "displayName": "Folia Checker",
+  "description": "Real-time linting for Folia Minecraft plugin compatibility violations",
+  "version": "1.1.0",
+  "publisher": "IronDiscipline",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/IronDiscipline-Project/folia-checker"
+  },
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Linters"],
+  "activationEvents": ["onLanguage:java"],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "folia-checker.scanWorkspace",
+        "title": "Folia Checker: ワークスペース全体を再スキャン"
+      }
+    ],
+    "configuration": {
+      "title": "Folia Checker",
+      "properties": {
+        "foliaChecker.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Folia Checker の診断機能を有効または無効にします。"
+        },
+        "foliaChecker.debounceMs": {
+          "type": "number",
+          "default": 400,
+          "description": "編集後、再解析するまでの待機時間（ミリ秒）。"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "webpack --mode production",
+    "watch": "webpack --watch --mode development",
+    "clean": "rimraf dist",
+    "package": "vsce package"
+  },
+  "dependencies": {
+    "@foliachecker/shared": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.85.0",
+    "rimraf": "^5.0.0",
+    "ts-loader": "^9.5.0",
+    "typescript": "^5.4.0",
+    "webpack": "^5.91.0",
+    "webpack-cli": "^5.1.0"
+  }
+}

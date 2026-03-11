@@ -1,0 +1,13 @@
+{
+  "name": "foliachecker",
+  "private": true,
+  "workspaces": [
+    "shared",
+    "vscode-ext"
+  ],
+  "scripts": {
+    "build": "npm run build -w shared && npm run build -w vscode-ext",
+    "watch:shared": "npm run watch -w shared",
+    "clean": "npm run clean -w shared & npm run clean -w vscode-ext"
+  }
+}
