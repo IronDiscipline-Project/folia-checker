@@ -54,11 +54,20 @@ export function analyzeContent(content: string, filePath: string): AnalysisResul
 
     const openIndex = lineForAnalysis.indexOf('/*');
     if (openIndex !== -1) {
-      lineForAnalysis = lineForAnalysis.slice(0, openIndex);
-      inBlockComment = true;
+      const closeOnSameLine = lineForAnalysis.indexOf('*/', openIndex + 2);
+      if (closeOnSameLine !== -1) {
+        // /* ... */ が同一行で完結 — コメント部分だけ除去して残りを解析
+        lineForAnalysis = lineForAnalysis.slice(0, openIndex) + lineForAnalysis.slice(closeOnSameLine + 2);
+      } else {
+        lineForAnalysis = lineForAnalysis.slice(0, openIndex);
+        inBlockComment = true;
+      }
     }
 
     lineForAnalysis = stripLineComment(lineForAnalysis);
+
+    // import / package 宣言はランタイム違反を含まないためスキップ
+    if (/^\s*(import|package)\s/.test(lineForAnalysis)) return;
 
     for (const rule of FOLIA_RULES) {
       const pattern = new RegExp(rule.patternSource, 'g');

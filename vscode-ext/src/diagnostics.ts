@@ -2,7 +2,9 @@ import * as vscode from 'vscode';
 import { analyzeContent, analyzeFile } from '@foliachecker/shared';
 import type { Violation } from '@foliachecker/shared';
 
-const DEBOUNCE_MS = 400;
+function getConfig() {
+  return vscode.workspace.getConfiguration('foliaChecker');
+}
 
 export class DiagnosticProvider {
   public readonly collection: vscode.DiagnosticCollection;
@@ -15,6 +17,7 @@ export class DiagnosticProvider {
   // 開いているドキュメントを解析（編集中の内容をリアルタイムで反映）
   analyzeDocument(document: vscode.TextDocument): void {
     if (!this.isTargetDocument(document)) return;
+    if (!getConfig().get<boolean>('enable', true)) return;
 
     const result = analyzeContent(document.getText(), document.uri.fsPath);
     const diagnostics = result.violations.map((v) =>
@@ -25,6 +28,8 @@ export class DiagnosticProvider {
 
   // ディスク上のファイルを直接解析（エディタで開いていないファイル用）
   analyzeFilePath(uri: vscode.Uri): void {
+    if (!getConfig().get<boolean>('enable', true)) return;
+
     const result = analyzeFile(uri.fsPath);
     if (result.error) return;
     const diagnostics = result.violations.map((v) =>
@@ -35,13 +40,14 @@ export class DiagnosticProvider {
 
   // ワークスペース内の全 .java ファイルを解析
   async analyzeWorkspace(): Promise<void> {
+    if (!getConfig().get<boolean>('enable', true)) return;
+
     const uris = await vscode.workspace.findFiles(
       '**/*.java',
       '{**/node_modules/**,**/build/**,**/target/**}',
     );
 
     for (const uri of uris) {
-      // 既に開いているファイルは document.getText() で解析（編集中の内容を優先）
       const openDoc = vscode.workspace.textDocuments.find(
         (d) => d.uri.toString() === uri.toString(),
       );
@@ -56,6 +62,7 @@ export class DiagnosticProvider {
   onDocumentChange(event: vscode.TextDocumentChangeEvent): void {
     if (!this.isTargetDocument(event.document)) return;
 
+    const debounceMs = getConfig().get<number>('debounceMs', 400);
     const key = event.document.uri.toString();
     const existingTimer = this.debounceTimers.get(key);
     if (existingTimer !== undefined) clearTimeout(existingTimer);
@@ -63,14 +70,14 @@ export class DiagnosticProvider {
     const timer = setTimeout(() => {
       this.analyzeDocument(event.document);
       this.debounceTimers.delete(key);
-    }, DEBOUNCE_MS);
+    }, debounceMs);
 
     this.debounceTimers.set(key, timer);
   }
 
-  clearDocument(document: vscode.TextDocument): void {
-    this.collection.delete(document.uri);
-    const key = document.uri.toString();
+  clearDocument(uri: vscode.Uri): void {
+    this.collection.delete(uri);
+    const key = uri.toString();
     const timer = this.debounceTimers.get(key);
     if (timer !== undefined) {
       clearTimeout(timer);
@@ -78,12 +85,17 @@ export class DiagnosticProvider {
     }
   }
 
+  // 全診断をクリアして再スキャン（設定変更時に使用）
+  async reloadAll(): Promise<void> {
+    this.collection.clear();
+    await this.analyzeWorkspace();
+  }
+
   private isTargetDocument(document: vscode.TextDocument): boolean {
     return document.languageId === 'java' && document.uri.scheme === 'file';
   }
 
   private violationToDiagnostic(v: Violation, uri: vscode.Uri): vscode.Diagnostic {
-    // VS Code Range は 0-based。Violation.line は 1-based なので -1 する
     const range = new vscode.Range(
       v.line - 1, v.column,
       v.line - 1, v.endColumn,

@@ -12,36 +12,46 @@ export function activate(context: vscode.ExtensionContext): void {
     new FoliaHoverProvider(),
   );
 
-  // 開いたとき（エディタ内の内容を解析）
   const openDisposable = vscode.workspace.onDidOpenTextDocument((doc) => {
     diagnosticProvider.analyzeDocument(doc);
   });
 
-  // 保存時
   const saveDisposable = vscode.workspace.onDidSaveTextDocument((doc) => {
     diagnosticProvider.analyzeDocument(doc);
   });
 
-  // 編集中（デバウンス付き）
   const changeDisposable = vscode.workspace.onDidChangeTextDocument((event) => {
     diagnosticProvider.onDocumentChange(event);
+  });
+
+  // ファイルを閉じたら、ディスク上の内容で再解析（unsaved changes を破棄した状態に戻す）
+  const closeDisposable = vscode.workspace.onDidCloseTextDocument((doc) => {
+    if (doc.uri.scheme === 'file' && doc.languageId === 'java') {
+      diagnosticProvider.analyzeFilePath(doc.uri);
+    }
   });
 
   // ワークスペースの .java ファイルの追加・変更・削除を監視
   const watcher = vscode.workspace.createFileSystemWatcher('**/*.java');
   watcher.onDidCreate((uri) => diagnosticProvider.analyzeFilePath(uri));
   watcher.onDidChange((uri) => {
-    // 開いているファイルは onDidChangeTextDocument で処理済みなのでスキップ
     const isOpen = vscode.workspace.textDocuments.some(
       (d) => d.uri.toString() === uri.toString(),
     );
     if (!isOpen) diagnosticProvider.analyzeFilePath(uri);
   });
   watcher.onDidDelete((uri) => {
-    diagnosticProvider.collection.delete(uri);
+    diagnosticProvider.clearDocument(uri);
   });
 
-  // 手動でワークスペース全体を再スキャンするコマンド
+  // 設定変更時に全ファイルを再スキャン
+  const configDisposable = vscode.workspace.onDidChangeConfiguration((e) => {
+    if (e.affectsConfiguration('foliaChecker')) {
+      diagnosticProvider.reloadAll();
+    }
+  });
+
+  // 手動再スキャンコマンド
   const scanCommand = vscode.commands.registerCommand(
     'folia-checker.scanWorkspace',
     async () => {
@@ -68,7 +78,9 @@ export function activate(context: vscode.ExtensionContext): void {
     openDisposable,
     saveDisposable,
     changeDisposable,
+    closeDisposable,
     watcher,
+    configDisposable,
     scanCommand,
   );
 }

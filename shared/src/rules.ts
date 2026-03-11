@@ -58,4 +58,42 @@ export const FOLIA_RULES: FoliaRule[] = [
       '  • runTaskAsynchronously 内にある場合は location.getRegionScheduler().run(...) で\n' +
       '    リージョンスレッドに戻ってからアクセスしてください',
   },
+
+  {
+    id: 'LEGACY_ASYNC_SCHEDULER',
+    severity: 'error',
+    patternSource: String.raw`\b(scheduleAsyncDelayedTask|scheduleAsyncRepeatingTask)\s*\(`,
+    message: (m) =>
+      `'${m.trim()}' は Bukkit の旧非同期スケジューラー API で、Folia では削除されています。`,
+    fixSuggestion:
+      'Bukkit.getAsyncScheduler() に移行してください:\n' +
+      '  • scheduleAsyncDelayedTask    →  Bukkit.getAsyncScheduler().runDelayed(plugin, task -> { ... }, delay, TimeUnit.MILLISECONDS)\n' +
+      '  • scheduleAsyncRepeatingTask  →  Bukkit.getAsyncScheduler().runAtFixedRate(plugin, task -> { ... }, initDelay, period, TimeUnit.MILLISECONDS)',
+  },
+
+  {
+    id: 'CANCEL_TASK',
+    severity: 'error',
+    patternSource: String.raw`\.cancelTask\s*\(`,
+    message: (_m) =>
+      `'.cancelTask(id)' は BukkitScheduler のメソッドで Folia では使用できません。` +
+      `Folia では ScheduledTask オブジェクトを通じてキャンセルします。`,
+    fixSuggestion:
+      'スケジューラーが返す ScheduledTask を保持してキャンセルしてください:\n' +
+      '  ScheduledTask task = Bukkit.getGlobalRegionScheduler().runDelayed(...);\n' +
+      '  task.cancel(); // int ID ではなくオブジェクトで管理',
+  },
+
+  {
+    id: 'UNSAFE_CHUNK_ACCESS',
+    severity: 'warning',
+    patternSource: String.raw`\b(getChunkAt|loadChunk)\s*\(`,
+    message: (m) =>
+      `'${m.trim()}' はリージョンスレッド外から呼び出すと Folia でクラッシュする可能性があります。`,
+    fixSuggestion:
+      'チャンク操作は対象座標のリージョンスレッドで行ってください:\n' +
+      '  location.getRegionScheduler().run(plugin, task -> {\n' +
+      '      Chunk chunk = location.getChunk(); // リージョンスレッド内で安全\n' +
+      '  });',
+  },
 ];

@@ -2,7 +2,10 @@ export type RuleId =
   | 'BUKKIT_SCHEDULER'
   | 'BUKKIT_RUNNABLE'
   | 'SYNC_SCHEDULER_METHODS'
-  | 'ASYNC_WORLD_ACCESS';
+  | 'ASYNC_WORLD_ACCESS'
+  | 'LEGACY_ASYNC_SCHEDULER'
+  | 'CANCEL_TASK'
+  | 'UNSAFE_CHUNK_ACCESS';
 
 export type Severity = 'error' | 'warning';
 
