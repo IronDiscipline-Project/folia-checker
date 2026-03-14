@@ -1,7 +1,8 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { analyzeContent, analyzeFile, isBukkitProject } from '@foliachecker/shared';
+import { analyzeContent, analyzeFile, detectProjectRuntime } from '@foliachecker/shared';
 import type { Violation } from '@foliachecker/shared';
+import type { ProjectRuntime } from '@foliachecker/shared';
 
 function getConfig() {
   return vscode.workspace.getConfiguration('foliaChecker');
@@ -10,28 +11,34 @@ function getConfig() {
 export class DiagnosticProvider {
   public readonly collection: vscode.DiagnosticCollection;
   private readonly debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
-  /** ワークスペースフォルダごとの Bukkit 系プロジェクト判定キャッシュ */
-  private readonly projectCache = new Map<string, boolean>();
+  /** ワークスペースフォルダごとのプロジェクト実行環境判定キャッシュ */
+  private readonly projectCache = new Map<string, ProjectRuntime>();
 
   constructor() {
     this.collection = vscode.languages.createDiagnosticCollection('folia-checker');
   }
 
-  /** ファイルパスが Bukkit 系プロジェクト配下かどうかをキャッシュ付きで判定 */
-  private isBukkitFile(fsPath: string): boolean {
+  /** ファイルパスが診断対象プロジェクト配下かどうかをキャッシュ付きで判定 */
+  private shouldAnalyzeFile(fsPath: string): boolean {
     const folder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(fsPath));
     const cacheKey = folder ? folder.uri.fsPath : path.dirname(fsPath);
     if (!this.projectCache.has(cacheKey)) {
-      this.projectCache.set(cacheKey, isBukkitProject(cacheKey));
+      this.projectCache.set(cacheKey, detectProjectRuntime(cacheKey));
     }
-    return this.projectCache.get(cacheKey)!;
+
+    const runtime = this.projectCache.get(cacheKey)!;
+    if (runtime === 'folia') return true;
+    return getConfig().get<boolean>('includeNonFoliaProjects', false);
   }
 
   // 開いているドキュメントを解析（編集中の内容をリアルタイムで反映）
   analyzeDocument(document: vscode.TextDocument): void {
     if (!this.isTargetDocument(document)) return;
     if (!getConfig().get<boolean>('enable', true)) return;
-    if (!this.isBukkitFile(document.uri.fsPath)) return;
+    if (!this.shouldAnalyzeFile(document.uri.fsPath)) {
+      this.collection.delete(document.uri);
+      return;
+    }
 
     const result = analyzeContent(document.getText(), document.uri.fsPath);
     const diagnostics = result.violations.map((v) =>
@@ -43,7 +50,10 @@ export class DiagnosticProvider {
   // ディスク上のファイルを直接解析（エディタで開いていないファイル用）
   analyzeFilePath(uri: vscode.Uri): void {
     if (!getConfig().get<boolean>('enable', true)) return;
-    if (!this.isBukkitFile(uri.fsPath)) return;
+    if (!this.shouldAnalyzeFile(uri.fsPath)) {
+      this.collection.delete(uri);
+      return;
+    }
 
     const result = analyzeFile(uri.fsPath);
     if (result.error) return;

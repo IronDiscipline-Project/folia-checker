@@ -3,6 +3,8 @@ import * as path from 'path';
 import { FOLIA_RULES } from './rules';
 import type { Violation, AnalysisResult } from './types';
 
+export type ProjectRuntime = 'folia' | 'paper' | 'bukkit' | 'unknown';
+
 // ─── Project Detection ────────────────────────────────────────────────────────
 
 /** ファイルから親ディレクトリを辿り、Bukkit 系プロジェクトのビルドファイルを探す */
@@ -26,19 +28,25 @@ function findProjectBuildFile(startPath: string): string | null {
  * pom.xml または build.gradle* に Bukkit 系の依存が含まれている場合に `true` を返す。
  * ビルドファイルが見つからない場合は `true`（フォールバック: ファイル単体での判定に委ねる）。
  */
-export function isBukkitProject(startPath: string): boolean {
+export function detectProjectRuntime(startPath: string): ProjectRuntime {
   const buildFile = findProjectBuildFile(startPath);
-  if (!buildFile) return true; // ビルドファイルなし → 判定不能なのでスキャンを許可
+  if (!buildFile) return 'unknown';
 
   let content: string;
   try {
     content = fs.readFileSync(buildFile, 'utf-8');
   } catch {
-    return true;
+    return 'unknown';
   }
 
-  // Bukkit / Spigot / Paper / Folia の代表的な groupId・artifactId・パッケージ名
-  return /org\.bukkit|io\.papermc|dev\.folia|spigotmc|net\.md-5/i.test(content);
+  if (/dev\.folia/i.test(content)) return 'folia';
+  if (/io\.papermc/i.test(content)) return 'paper';
+  if (/org\.bukkit|spigotmc|net\.md-5/i.test(content)) return 'bukkit';
+  return 'unknown';
+}
+
+export function isBukkitProject(startPath: string): boolean {
+  return detectProjectRuntime(startPath) !== 'unknown';
 }
 
 // ─── Comment Stripping ────────────────────────────────────────────────────────

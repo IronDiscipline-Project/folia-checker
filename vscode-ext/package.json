@@ -2,7 +2,7 @@
   "name": "folia-checker",
   "displayName": "Folia Checker",
   "description": "Real-time linting for Folia Minecraft plugin compatibility violations",
-  "version": "1.3.0",
+  "version": "1.5.0",
   "publisher": "IronDiscipline",
   "license": "MIT",
   "repository": {
@@ -32,6 +32,11 @@
           "type": "number",
           "default": 400,
           "description": "編集後、再解析するまでの待機時間（ミリ秒）。"
+        },
+        "foliaChecker.includeNonFoliaProjects": {
+          "type": "boolean",
+          "default": false,
+          "description": "Folia 依存がない Paper/Bukkit プロジェクトも診断対象に含めます。Folia への移行チェックをしたい場合のみ有効にしてください。"
         }
       }
     }
