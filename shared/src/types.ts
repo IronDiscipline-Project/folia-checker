@@ -5,7 +5,10 @@ export type RuleId =
   | 'ASYNC_WORLD_ACCESS'
   | 'LEGACY_ASYNC_SCHEDULER'
   | 'CANCEL_TASK'
-  | 'UNSAFE_CHUNK_ACCESS';
+  | 'UNSAFE_CHUNK_ACCESS'
+  | 'TELEPORT_SYNC'
+  | 'GET_ONLINE_PLAYERS'
+  | 'CANCEL_ALL_TASKS';
 
 export type Severity = 'error' | 'warning';
 
@@ -43,4 +46,26 @@ export interface FoliaRule {
   patternSource: string;
   message: (matchedText: string) => string;
   fixSuggestion: string;
+  /**
+   * Optional quick-fix replacement map.
+   * Keys are regex pattern strings, values are the replacement strings.
+   * Used by the Code Action provider to offer automatic fixes.
+   */
+  quickFix?: { pattern: string; replacement: string }[];
+}
+
+/**
+ * Summary statistics for a migration report.
+ */
+export interface MigrationReport {
+  totalFiles: number;
+  analyzedFiles: number;
+  cleanFiles: number;
+  filesWithViolations: number;
+  totalViolations: number;
+  errorCount: number;
+  warningCount: number;
+  violationsByRule: Record<string, number>;
+  /** 0–100 score representing migration readiness */
+  readinessScore: number;
 }
