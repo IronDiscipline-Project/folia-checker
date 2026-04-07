@@ -2,7 +2,7 @@
   "name": "folia-checker",
   "displayName": "Folia Checker",
   "description": "Real-time linting for Folia Minecraft plugin compatibility violations",
-  "version": "1.5.0",
+  "version": "2.0.0",
   "publisher": "IronDiscipline",
   "license": "MIT",
   "repository": {
@@ -10,7 +10,7 @@
     "url": "https://github.com/IronDiscipline-Project/folia-checker"
   },
   "engines": { "vscode": "^1.85.0" },
-  "categories": ["Linters"],
+  "categories": ["Linters", "Snippets", "Other"],
   "activationEvents": ["onLanguage:java"],
   "main": "./dist/extension.js",
   "contributes": {
@@ -18,6 +18,14 @@
       {
         "command": "folia-checker.scanWorkspace",
         "title": "Folia Checker: ワークスペース全体を再スキャン"
+      },
+      {
+        "command": "folia-checker.migrationReport",
+        "title": "Folia Checker: 移行レポートを生成"
+      },
+      {
+        "command": "folia-checker.fixAll",
+        "title": "Folia Checker: 現在のファイルを一括修正"
       }
     ],
     "configuration": {

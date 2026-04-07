@@ -14,6 +14,10 @@ export const FOLIA_RULES: FoliaRule[] = [
       '  • Bukkit.getAsyncScheduler()          — I/O・DB・ネットワーク（ワールドアクセス禁止）\n' +
       '  • entity.getScheduler()               — エンティティに紐づくタスク\n' +
       '  • location.getRegionScheduler()       — ワールド座標に紐づくタスク',
+    quickFix: [
+      { pattern: String.raw`Bukkit\.getScheduler\(\)`, replacement: 'Bukkit.getGlobalRegionScheduler()' },
+      { pattern: String.raw`\.getServer\(\)\.getScheduler\(\)`, replacement: '.getServer().getGlobalRegionScheduler()' },
+    ],
   },
 
   {
@@ -29,6 +33,9 @@ export const FOLIA_RULES: FoliaRule[] = [
       '  • Bukkit.getGlobalRegionScheduler().runDelayed(plugin, task -> { ... }, delayTicks)\n' +
       '  • Bukkit.getGlobalRegionScheduler().runAtFixedRate(plugin, task -> { ... }, initDelay, period)\n' +
       '  • Bukkit.getAsyncScheduler().runNow(plugin, task -> { ... })',
+    quickFix: [
+      { pattern: String.raw`new\s+BukkitRunnable\s*\(`, replacement: '/* TODO: Folia移行 — ラムダ + Folia Scheduler に書き換え */ new BukkitRunnable(' },
+    ],
   },
 
   {
@@ -45,6 +52,11 @@ export const FOLIA_RULES: FoliaRule[] = [
       '  • エンティティ: entity.getScheduler().run(plugin, task -> { ... }, null)\n' +
       '  • 座標: location.getRegionScheduler().run(plugin, task -> { ... })\n' +
       '  • グローバル: Bukkit.getGlobalRegionScheduler().run(plugin, task -> { ... })',
+    quickFix: [
+      { pattern: String.raw`\.runTask\s*\(`, replacement: '.run(' },
+      { pattern: String.raw`\.runTaskLater\s*\(`, replacement: '.runDelayed(' },
+      { pattern: String.raw`\.runTaskTimer\s*\(`, replacement: '.runAtFixedRate(' },
+    ],
   },
 
   {
@@ -71,6 +83,10 @@ export const FOLIA_RULES: FoliaRule[] = [
       'Bukkit.getAsyncScheduler() に移行してください:\n' +
       '  • scheduleAsyncDelayedTask    →  Bukkit.getAsyncScheduler().runDelayed(plugin, task -> { ... }, delay, TimeUnit.MILLISECONDS)\n' +
       '  • scheduleAsyncRepeatingTask  →  Bukkit.getAsyncScheduler().runAtFixedRate(plugin, task -> { ... }, initDelay, period, TimeUnit.MILLISECONDS)',
+    quickFix: [
+      { pattern: String.raw`\.scheduleAsyncDelayedTask\s*\(`, replacement: '.runDelayed(' },
+      { pattern: String.raw`\.scheduleAsyncRepeatingTask\s*\(`, replacement: '.runAtFixedRate(' },
+    ],
   },
 
   {
@@ -98,5 +114,55 @@ export const FOLIA_RULES: FoliaRule[] = [
       '  location.getRegionScheduler().run(plugin, task -> {\n' +
       '      Chunk chunk = location.getChunk(); // リージョンスレッド内で安全\n' +
       '  });',
+  },
+
+  // ─── New Rules ───────────────────────────────────────────────────────────────
+
+  {
+    id: 'TELEPORT_SYNC',
+    severity: 'error',
+    patternSource: String.raw`\.teleport\s*\(`,
+    message: (_m) =>
+      `同期テレポート '.teleport()' は Folia では非推奨です。` +
+      `エンティティが別リージョンに移動する場合、同期テレポートはスレッド違反を引き起こします。`,
+    fixSuggestion:
+      '非同期テレポートに置き換えてください:\n' +
+      '  • entity.teleportAsync(location)  — CompletableFuture<Boolean> を返す\n' +
+      '  • entity.teleportAsync(location).thenAccept(success -> { ... })',
+    quickFix: [
+      { pattern: String.raw`\.teleport\s*\(`, replacement: '.teleportAsync(' },
+    ],
+  },
+
+  {
+    id: 'GET_ONLINE_PLAYERS',
+    severity: 'warning',
+    patternSource: String.raw`\bBukkit\.getOnlinePlayers\s*\(\)|\.getServer\(\)\.getOnlinePlayers\s*\(\)`,
+    message: (_m) =>
+      `'getOnlinePlayers()' の結果をイテレートしてエンティティ操作を行うと、` +
+      `Folia ではリージョンスレッド違反になる可能性があります。` +
+      `各プレイヤーが異なるリージョンスレッドに属する場合があるためです。`,
+    fixSuggestion:
+      '各プレイヤーの操作はそのプレイヤーのスケジューラーで行ってください:\n' +
+      '  for (Player p : Bukkit.getOnlinePlayers()) {\n' +
+      '      p.getScheduler().run(plugin, task -> {\n' +
+      '          // p に対する操作（安全）\n' +
+      '      }, null);\n' +
+      '  }',
+  },
+
+  {
+    id: 'CANCEL_ALL_TASKS',
+    severity: 'error',
+    patternSource: String.raw`\.cancelTasks\s*\(`,
+    message: (_m) =>
+      `'.cancelTasks(plugin)' は BukkitScheduler のメソッドで Folia では使用できません。` +
+      `Folia では各 ScheduledTask を個別にキャンセルする必要があります。`,
+    fixSuggestion:
+      'スケジューラーが返す ScheduledTask をコレクションで管理してキャンセルしてください:\n' +
+      '  List<ScheduledTask> tasks = new ArrayList<>();\n' +
+      '  tasks.add(Bukkit.getGlobalRegionScheduler().runAtFixedRate(...));\n' +
+      '  // プラグイン無効化時:\n' +
+      '  tasks.forEach(ScheduledTask::cancel);',
   },
 ];
